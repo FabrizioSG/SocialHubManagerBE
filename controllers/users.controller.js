@@ -18,18 +18,52 @@ const getUsers = (request, response) => {
     })
 }
 
-const getUserById = async (request, response) => {
-    const id = parseInt(request.params.id)
+const getUserByEmail = async (email) => {
 
-    pool.query('SELECT * FROM users WHERE id = $1', [id], (error, results) => {
+}
+
+const login = async (request, response) => {
+
+    let { email, password } = request.body;
+
+    // Validar inputs
+    if (!(email && password)) {
+        return response.status(StatusCodes.BAD_REQUEST).json({
+            message: ReasonPhrases.BAD_REQUEST,
+            data: "Falta correo o contraseña"
+        });
+    }
+
+    //Validar existencia de usuario
+    pool.query('SELECT * FROM usuarios WHERE email = $1', [email], async (error, results) => {
         if (error) {
             throw error
         }
-        response.status(200).json(results.rows)
+        if (results.rows.length<1) {
+            return response.status(StatusCodes.NOT_FOUND).json({
+                message: ReasonPhrases.NOT_FOUND,
+                data: "Usuario no existe en la base de datos"
+            });
+        }
+        // Comparar contraseña
+        if (await bcrypt.compare(password, results.rows[0].password)) {
+            return response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: "Usuario loggeado"
+            });
+        } else {
+            return response.status(StatusCodes.UNAUTHORIZED).json({
+                message: ReasonPhrases.UNAUTHORIZED,
+                data: "Usuario o contraseña incorrecto"
+            });
+        }
     })
+
+
+
 }
 
-const createUser = async(request, response) => {
+const createUser = async (request, response) => {
     let { firstName, lastName, email, password } = request.body
 
     password = await bcrypt.hash(password, 10);
@@ -41,7 +75,7 @@ const createUser = async(request, response) => {
         response.status(StatusCodes.CREATED).json({
             message: ReasonPhrases.CREATED,
             data: "User created:" + email,
-          });
+        });
     })
 }
 
@@ -74,7 +108,7 @@ const deleteUser = (request, response) => {
 
 module.exports = {
     getUsers,
-    getUserById,
+    login,
     createUser,
     updateUser,
     deleteUser,
