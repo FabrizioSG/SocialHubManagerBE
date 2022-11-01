@@ -1,10 +1,10 @@
 var createError = require('http-errors');
 var express = require('express');
+const { Client } = require('pg')
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-
-var indexRouter = require('./routes/index');
+var cors = require('cors');
 var usersRouter = require('./routes/users');
 
 var app = express();
@@ -18,9 +18,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use("/users", usersRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -37,5 +37,18 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+const client = new Client({
+  user: 'postgres',
+  host: 'socialhubmanager.cf0l220amgtd.us-east-1.rds.amazonaws.com',
+  database: 'postgres',
+  password: 'secret2022',
+  port: 5432,
+})
+client.connect(function(err) {
+  if (err) throw err;
+  console.log("Connected!");
+});
+
 
 module.exports = app;
