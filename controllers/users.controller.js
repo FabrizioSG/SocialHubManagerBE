@@ -49,7 +49,7 @@ const login = async (request, response) => {
         if (await bcrypt.compare(password, results.rows[0].password)) {
             return response.status(StatusCodes.OK).json({
                 message: ReasonPhrases.OK,
-                data: "Usuario loggeado"
+                data: ("Usuario loggeado",results.rows[0])
             });
         } else {
             return response.status(StatusCodes.UNAUTHORIZED).json({
