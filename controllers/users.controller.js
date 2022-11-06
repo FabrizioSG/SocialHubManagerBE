@@ -1,5 +1,7 @@
 const bcrypt = require("bcryptjs");
+const token = require('basic-auth-token');
 const { ReasonPhrases, StatusCodes } = require("http-status-codes");
+const {TwitterApi} = require('twitter-api-v2');
 
 const Pool = require('pg').Pool
 const pool = new Pool({
@@ -9,6 +11,14 @@ const pool = new Pool({
     password: 'secret2022',
     port: 5432,
 })
+
+const T = new TwitterApi({
+    appKey:"W0SfhdIFlIEjBAiEuVlNOShIG",
+    appSecret:"7mxEw05rtuTQ1GVEqhChsf400mX5WwJm6QYrxXrEyv9Uy4xV4K",
+    accessToken:"1589277394107514880-SvQJ9k47tDXGWoYn1fk29l5nDrDz98",
+    accessSecret:"z4AIuz8C63BLHUqwvBwvh3u1Lr5JnPjommUzSsjH8opLf",
+  });
+  
 const getUsers = (request, response) => {
     pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
         if (error) {
@@ -18,10 +28,20 @@ const getUsers = (request, response) => {
     })
 }
 
-const getUserByEmail = async (email) => {
-
+const crearTweet = (request, response) => {
+    let {texto} = request.body;
+    T.v2.tweet(texto).then((val) => {
+        return response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: (val)
+        });
+    }).catch((err) => {
+        return response.status(StatusCodes.BAD_REQUEST).json({
+            message: ReasonPhrases.BAD_REQUEST,
+            data: err
+        });
+    })
 }
-
 const login = async (request, response) => {
 
     let { email, password } = request.body;
@@ -47,9 +67,11 @@ const login = async (request, response) => {
         }
         // Comparar contraseña
         if (await bcrypt.compare(password, results.rows[0].password)) {
+            auth = token(results.rows[0].id,results.rows[0].password);
+            user = {"data":results.rows[0], "token":auth};
             return response.status(StatusCodes.OK).json({
                 message: ReasonPhrases.OK,
-                data: ("Usuario loggeado",results.rows[0])
+                data: (user)
             });
         } else {
             return response.status(StatusCodes.UNAUTHORIZED).json({
@@ -107,6 +129,8 @@ const deleteUser = (request, response) => {
 }
 
 module.exports = {
+
+    crearTweet,
     getUsers,
     login,
     createUser,
