@@ -18,7 +18,7 @@ const T = new TwitterApi({
     accessToken:"1589277394107514880-SvQJ9k47tDXGWoYn1fk29l5nDrDz98",
     accessSecret:"z4AIuz8C63BLHUqwvBwvh3u1Lr5JnPjommUzSsjH8opLf",
   });
-  
+
 const getUsers = (request, response) => {
     pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
         if (error) {
@@ -29,8 +29,9 @@ const getUsers = (request, response) => {
 }
 
 const crearTweet = (request, response) => {
-    let {texto} = request.body;
+    let {texto,usuario,fecha_publicacion,tipo} = request.body;
     T.v2.tweet(texto).then((val) => {
+        insertarTweetBD(usuario,fecha_publicacion,tipo);
         return response.status(StatusCodes.OK).json({
             message: ReasonPhrases.OK,
             data: (val)
@@ -80,9 +81,6 @@ const login = async (request, response) => {
             });
         }
     })
-
-
-
 }
 
 const createUser = async (request, response) => {
@@ -128,6 +126,17 @@ const deleteUser = (request, response) => {
     })
 }
 
+const insertarTweetBD = async (usuario, fecha_publicacion, tipo) => {
+    if(!fecha_publicacion) {
+        fecha_publicacion = Date.now()/1000;
+    }
+    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo) VALUES ($1, $2, to_timestamp($3), $4)', [usuario,'Twitter',fecha_publicacion,tipo], (error, results) => {
+        if (error) {
+            throw error
+        }
+        return results;
+    })
+}
 module.exports = {
 
     crearTweet,
