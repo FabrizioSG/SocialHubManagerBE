@@ -23,7 +23,7 @@ const getScheduleByUser = (request, response) => {
         if (results.rows.length<1) {
             return response.status(StatusCodes.NOT_FOUND).json({
                 message: ReasonPhrases.NOT_FOUND,
-                data: "Este usuario no tiene horarios de publicación"
+                data: "Este usuario no tiene horarios de publicación."
             });
         } else {
             return response.status(StatusCodes.OK).json({
@@ -34,6 +34,45 @@ const getScheduleByUser = (request, response) => {
     });
 }
 
+const createSchedule = async (request, response) => {
+    let { userId, dayOfWeek, timeOfDay } = request.body;
+
+    pool.query('INSERT INTO schedules (usuario_id, day_of_week, time_of_day) VALUES ($1, $2, $3)',
+               [userId, dayOfWeek, timeOfDay],
+               (error, results) => {
+        
+        if (error) {
+            throw error
+        }
+
+        response.status(StatusCodes.CREATED).json({
+            message: ReasonPhrases.CREATED,
+            data: "Nuevo horario de publicación creado."
+        });
+    });
+}
+
+const updateSchedule = (request, response) => {
+    const id = parseInt(request.params.id);
+    const { dayOfWeek, timeOfDay } = request.body;
+
+    pool.query('UPDATE schedules SET day_of_week = $1, time_of_day = $2 WHERE id = $3',
+               [dayOfWeek, timeOfDay, id],
+               (error, results) => {
+            
+        if (error) {
+            throw error
+        }
+
+        response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: "Horario de publicación actualizado."
+        });
+    });
+}
+
 module.exports = {
-    getScheduleByUser
+    getScheduleByUser,
+    createSchedule,
+    updateSchedule
 }
