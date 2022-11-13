@@ -71,8 +71,27 @@ const updateSchedule = (request, response) => {
     });
 }
 
+const deleteSchedule = (request, response) => {
+    const id = parseInt(request.params.id);
+
+    pool.query('DELETE FROM schedules WHERE id = $1',
+               [id],
+               (error, results) => {
+        
+        if (error) {
+            throw error
+        }
+
+        response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: "Horario de publicación eliminado."
+        });
+    });
+}
+
 module.exports = {
     getScheduleByUser,
     createSchedule,
-    updateSchedule
+    updateSchedule,
+    deleteSchedule
 }
