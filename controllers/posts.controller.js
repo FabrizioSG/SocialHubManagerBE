@@ -1,5 +1,6 @@
 const { ReasonPhrases, StatusCodes } = require("http-status-codes");
 const { TwitterApi } = require('twitter-api-v2');
+const schedule = require('node-schedule');
 
 const Pool = require('pg').Pool
 const pool = new Pool({
@@ -10,16 +11,16 @@ const pool = new Pool({
     port: 5432,
 })
 
-const T = new TwitterApi({
-    appKey: "W0SfhdIFlIEjBAiEuVlNOShIG",
-    appSecret: "7mxEw05rtuTQ1GVEqhChsf400mX5WwJm6QYrxXrEyv9Uy4xV4K",
-    accessToken: "1589277394107514880-SvQJ9k47tDXGWoYn1fk29l5nDrDz98",
-    accessSecret: "z4AIuz8C63BLHUqwvBwvh3u1Lr5JnPjommUzSsjH8opLf",
-});
+// TWITTER
+const client = new TwitterApi({ clientId: "Q0c5ZXhPcWZEUmhMRFJWd3IxZGM6MTpjaQ", clientSecret: "qQpBzMN4StGVZXn5b0U9-h2I1gLovjqceJx96qbqCN3M7jq1_U" });
 
-const crearTweet = (request, response) => {
+
+const crearTweet = async (request, response) => {
     let { texto, usuario, fecha_publicacion, tipo } = request.body;
-    T.v2.tweet(texto).then((val) => {
+    const token = await getTwToken(usuario);
+    //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
+    const client1 = new TwitterApi(token);
+    client1.v2.tweet(texto).then((val) => {
         insertarTweetBD(usuario, fecha_publicacion, tipo);
         return response.status(StatusCodes.OK).json({
             message: ReasonPhrases.OK,
@@ -45,7 +46,55 @@ const insertarTweetBD = async (usuario, fecha_publicacion, tipo) => {
     })
 }
 
-const getPostsByUser = (request, response) => {
+const crearAuthLink = async (request, response) => {
+    const info = client.generateOAuth2AuthLink("http://localhost:3000/home",{ scope: ['tweet.read', 'users.read', 'offline.access','tweet.write']})
+    
+    return response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data:info
+        });   
+}
+
+const crearAuthToken = async (request, response) => {
+    const { state, code, codeVerifier } = request.body;
+
+  if (!codeVerifier || !state || !code) {
+    return response.status(400).send('You denied the app or your session expired!');
+  }
+
+  // Obtain access token
+
+  client.loginWithOAuth2({ code, codeVerifier, redirectUri:"http://localhost:3000/home" })
+    .then(async ({ client: loggedClient, accessToken, refreshToken, expiresIn }) => {
+        await saveTwToken('15',accessToken)
+      
+    })
+    .catch((err) => response.status(403).send(err));
+}
+
+const saveTwToken = async (usuario, token) => {
+   
+    pool.query('UPDATE usuarios set twitter=$1 where id=$2', [token, usuario], (error, results) => {
+        if (error) {
+            throw error
+        }
+        return results;
+    })
+}
+const getTwToken = async (usuario) => {
+   
+    pool.query('SELECT * from usuarios where id=$1', [usuario], (error, results) => {
+        if (error) {
+            throw error
+        }
+        console.log(results.rows[0].twitter);
+        return results;
+    })
+}
+//END TWITTER
+
+//Schedule Posts
+const programarPost = (request, response) => {
     let { usuario_id } = request.params;
 
     pool.query('SELECT * FROM posts WHERE usuario_id = $1', [usuario_id], async (error, results) => {
@@ -66,9 +115,29 @@ const getPostsByUser = (request, response) => {
     })
 }
 
+const getPostsByUser = (request, response) => {
+    let { usuario_id } = request.params;
 
+    pool.query('SELECT * FROM posts WHERE usuario_id = $1', [usuario_id], async (error, results) => {
+        if (error) {
+            throw error
+        }
+        if (results.rows.length<1) {
+            return response.status(StatusCodes.NOT_FOUND).json({
+                message: ReasonPhrases.NOT_FOUND,
+                data: "Este usuario no tiene posts"
+            });
+        } else {
+            return response.status(StatusCodes.OK).json({
+                message:ReasonPhrases.OK,
+                data:results.rows
+            });
+        }
+    })
+}
 module.exports = {
-
+    crearAuthToken,
+    crearAuthLink,
     crearTweet,
     getPostsByUser
 }
