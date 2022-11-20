@@ -19,6 +19,8 @@
     "morgan": "~1.9.1",
     "node-schedule": "^2.1.0",
     "pg": "^8.8.0",
+    "reddit-oauth": "^1.1.1",
+    "snoowrap": "^1.23.0",
     "twitter-api-v2": "^1.12.9"
   },
   "devDependencies": {
