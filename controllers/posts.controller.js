@@ -23,7 +23,7 @@ const crearTweet = async (request, response) => {
     let { texto, usuario, fecha_publicacion, tipo } = request.body;
     const token = await getTwToken(usuario);
     //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
-    const client1 = new TwitterApi(token);
+    const client1 = new TwitterApi("a3F3QXJ2bnZRbFFuZG5nUlQwdHRRVjJ6QUpLdFgzMW1MejhDYlQzaWpSMUxSOjE2Njg5MTQ2OTc3MTQ6MToxOmF0OjE");
     client1.v2.tweet(texto).then((val) => {
         insertarTweetBD(usuario, fecha_publicacion, tipo);
         return response.status(StatusCodes.OK).json({
@@ -60,7 +60,7 @@ const crearAuthLink = async (request, response) => {
 }
 
 const crearAuthToken = async (request, response) => {
-    const { state, code, codeVerifier } = request.body;
+    const { state, code, codeVerifier, user } = request.body;
 
     if (!codeVerifier || !state || !code) {
         return response.status(400).send('You denied the app or your session expired!');
@@ -70,7 +70,7 @@ const crearAuthToken = async (request, response) => {
 
     client.loginWithOAuth2({ code, codeVerifier, redirectUri: "http://localhost:3000/home" })
         .then(async ({ client: loggedClient, accessToken, refreshToken, expiresIn }) => {
-            await saveTwToken('15', accessToken)
+            await saveTwToken(user, accessToken)
 
         })
         .catch((err) => response.status(403).send(err));
@@ -117,7 +117,7 @@ const crearRedditAuthLink = async (req, res) => {
 
 }
 const crearRedditAuthToken = async (req, res) => {
-    const { state, code } = req.body;
+    const { state, code, user } = req.body;
     reddit.oAuthTokens(
         'reddit',
         { state: state, code: code },
@@ -125,7 +125,7 @@ const crearRedditAuthToken = async (req, res) => {
             // Print the access and refresh tokens we just retrieved
             console.log(reddit.access_token);
             console.log(reddit.refresh_token);
-            saveRdToken('15', reddit.refresh_token)
+            saveRdToken(user, reddit.refresh_token)
 
             return res.status(StatusCodes.OK).json({
                 message: ReasonPhrases.OK,
@@ -197,6 +197,72 @@ const insertarRedditBD = async (usuario, fecha_publicacion, tipo) => {
     })
 }
 
+//END REDDIT
+
+//LINKEDIN
+var Linkedin = require('node-linkedin')('78glr1c7cxocrx', 'MEwhepYSWesg9Pnk', 'http://localhost:3000/home');
+
+const crearLinkedAuthLink = async (req, res) => {
+    var scope = [ 'r_emailaddress','r_liteprofile','w_member_social'];
+
+    const link = Linkedin.auth.authorize(scope);
+
+        return res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: link
+        });
+    
+}
+const crearLinkedAuthToken = async (req, res) => {
+    const { code, state, user } = req.body;
+    Linkedin.auth.getAccessToken(code, state, function(err, results) {
+        if ( err )
+            return console.error(err);
+ 
+        /**
+         * Results have something like:
+         * {"expires_in":5184000,"access_token":". . . ."}
+         */
+ 
+        console.log(results);
+        saveLiToken(user,results.access_token);
+        return res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: results
+        });
+    });
+
+}
+const crearLinkedPost = async (req, res) => {
+
+    const { texto, usuario, tipo, fecha_publicacion } = req.body;
+    //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
+    const token = await getRdToken(usuario);
+    var linkedin = Linkedin.init('AQVhyKt0hU7lxoOk1P-IBQkAHOg6bSLSooBvMCpUUKM1RsWT30LA-whK6jEFEGgKWF7sYYMPV0aInnnQ1RpaRHh7Hberxk52HVaeJ0xH-t9FA_9KKRTHDic9ytmA7jZDrGbmszvN83-Bqr6Rg8kTq1fsTjYxqm-wu75_cBBNsI9T0M4VUgFne4lRZN-uHBYC7GuzedxIsQsYl8vGE8dRvy11BMNPYRT-sOIJcPLfQCyalND7JOe2eCTA-zkKxmLZvUGr91TbRf3L1rn__FOYuNaDBtOSEFngBsKiBwluBDBggYtrmCffgeTcFlkmUN3HpcL-PDl7JtLKlKN9umf4gCOh5IO11w');
+
+    //TODO: Crear el post en linkedin
+    
+}
+const saveLiToken = async (usuario, token) => {
+
+    pool.query('UPDATE usuarios set linkedin=$1 where id=$2', [token, usuario], (error, results) => {
+        if (error) {
+            throw error
+        }
+        return results;
+    })
+}
+const getLiToken = async (usuario) => {
+
+    pool.query('SELECT * from usuarios where id=$1', [usuario], (error, results) => {
+        if (error) {
+            throw error
+        }
+        console.log(results.rows[0].reddit);
+        return results;
+    })
+}
+
 //Schedule Posts
 const programarPost = (request, response) => {
     let { usuario_id } = request.params;
@@ -246,5 +312,7 @@ module.exports = {
     getPostsByUser,
     crearRedditAuthToken,
     crearRedditAuthLink,
-    crearRedditPost
+    crearRedditPost,
+    crearLinkedAuthLink,
+    crearLinkedAuthToken
 }

@@ -11,6 +11,8 @@ router.post('/tweet/token',postController.crearAuthToken)
 router.post('/reddit/token',postController.crearRedditAuthToken)
 router.post('/reddit/link',postController.crearRedditAuthLink)
 router.post('/reddit/post',postController.crearRedditPost)
+router.post('/linkedin/token',postController.crearLinkedAuthToken)
+router.post('/linkedin/link',postController.crearLinkedAuthLink)
 
 
 module.exports = router;
