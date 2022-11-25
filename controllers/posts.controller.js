@@ -22,8 +22,7 @@ const client = new TwitterApi({ clientId: "Q0c5ZXhPcWZEUmhMRFJWd3IxZGM6MTpjaQ", 
 const crearTweet = async (request, response) => {
     let { texto, usuario, fecha_publicacion, tipo } = request.body;
     const token = await getTwToken(usuario);
-    //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
-    const client1 = new TwitterApi("a3F3QXJ2bnZRbFFuZG5nUlQwdHRRVjJ6QUpLdFgzMW1MejhDYlQzaWpSMUxSOjE2Njg5MTQ2OTc3MTQ6MToxOmF0OjE");
+    const client1 = new TwitterApi(token);
     client1.v2.tweet(texto).then((val) => {
         insertarTweetBD(usuario, fecha_publicacion, tipo);
         return response.status(StatusCodes.OK).json({
@@ -87,13 +86,14 @@ const saveTwToken = async (usuario, token) => {
 }
 const getTwToken = async (usuario) => {
 
-    pool.query('SELECT * from usuarios where id=$1', [usuario], (error, results) => {
-        if (error) {
-            throw error
-        }
-        console.log(results.rows[0].twitter);
-        return results;
-    })
+    try {
+        const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
+        console.log(res.rows[0].twitter)
+        return res.rows[0].twitter;
+
+      } catch (err) {
+        console.log(err.stack)
+      }
 }
 //END TWITTER
 
@@ -137,13 +137,12 @@ const crearRedditAuthToken = async (req, res) => {
 const crearRedditPost = async (req, res) => {
 
     const { texto, usuario, tipo, fecha_publicacion } = req.body;
-    //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
     const token = await getRdToken(usuario);
     const r = new snoowrap({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
         clientId: '28T22kreGnYJ36AGZKix7Q',
         clientSecret: 'iC1omzDOWGpE6q3EdyckOkdvN8nHMA',
-        refreshToken: '42511571-C0rF1Xme-P_aNN3RSiwRXhj4wfztlA'
+        refreshToken: token
     });
     try {
         const post = r.getSubreddit('SocialHubMngr').submitSelfpost({ title: 'Title', text: texto });
@@ -176,14 +175,15 @@ const saveRdToken = async (usuario, token) => {
     })
 }
 const getRdToken = async (usuario) => {
+    
+    try {
+        const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
+        console.log(res.rows[0].reddit)
+        return res.rows[0].reddit;
 
-    pool.query('SELECT * from usuarios where id=$1', [usuario], (error, results) => {
-        if (error) {
-            throw error
-        }
-        console.log(results.rows[0].reddit);
-        return results;
-    })
+      } catch (err) {
+        console.log(err.stack)
+      }
 }
 const insertarRedditBD = async (usuario, fecha_publicacion, tipo) => {
     if (!fecha_publicacion) {
@@ -254,13 +254,14 @@ const saveLiToken = async (usuario, token) => {
 }
 const getLiToken = async (usuario) => {
 
-    pool.query('SELECT * from usuarios where id=$1', [usuario], (error, results) => {
-        if (error) {
-            throw error
-        }
-        console.log(results.rows[0].reddit);
-        return results;
-    })
+    try {
+        const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
+        console.log(res.rows[0].linkedin)
+        return res.rows[0].linkedin;
+
+      } catch (err) {
+        console.log(err.stack)
+      }
 }
 
 //Schedule Posts
@@ -314,5 +315,6 @@ module.exports = {
     crearRedditAuthLink,
     crearRedditPost,
     crearLinkedAuthLink,
-    crearLinkedAuthToken
+    crearLinkedAuthToken,
+    crearLinkedPost
 }
