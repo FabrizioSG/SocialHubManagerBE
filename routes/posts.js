@@ -15,5 +15,4 @@ router.post('/linkedin/token',postController.crearLinkedAuthToken)
 router.post('/linkedin/link',postController.crearLinkedAuthLink)
 router.post('/linkedin/post',postController.crearLinkedPost)
 
-
 module.exports = router;

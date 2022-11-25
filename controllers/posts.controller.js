@@ -23,7 +23,7 @@ const crearTweet = async (request, response) => {
     const token = await getTwToken(usuario);
     const client1 = new TwitterApi(token);
     client1.v2.tweet(texto).then((val) => {
-        insertarTweetBD(usuario, fecha_publicacion, tipo);
+        insertarTweetBD(usuario, fecha_publicacion, tipo, texto);
         return response.status(StatusCodes.OK).json({
             message: ReasonPhrases.OK,
             data: (val)
@@ -36,11 +36,11 @@ const crearTweet = async (request, response) => {
     })
 }
 
-const insertarTweetBD = async (usuario, fecha_publicacion, tipo) => {
+const insertarTweetBD = async (usuario, fecha_publicacion, tipo, texto) => {
     if (!fecha_publicacion) {
         fecha_publicacion = Date.now() / 1000;
     }
-    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo) VALUES ($1, $2, to_timestamp($3), $4)', [usuario, 'Twitter', fecha_publicacion, tipo], (error, results) => {
+    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo,texto) VALUES ($1, $2, to_timestamp($3), $4, $5)', [usuario, 'Twitter', fecha_publicacion, tipo, texto], (error, results) => {
         if (error) {
             throw error
         }
@@ -153,7 +153,7 @@ const crearRedditPost = async (req, res) => {
     try {
         const post = r.getSubreddit('SocialHubMngr').submitSelfpost({ title: 'Title', text: texto });
         try {
-            await insertarRedditBD(usuario, fecha_publicacion, tipo);
+            await insertarRedditBD(usuario, fecha_publicacion, tipo, texto);
 
         } catch (err) {
             console.log(err)
@@ -191,11 +191,11 @@ const getRdToken = async (usuario) => {
         console.log(err.stack)
       }
 }
-const insertarRedditBD = async (usuario, fecha_publicacion, tipo) => {
+const insertarRedditBD = async (usuario, fecha_publicacion, tipo, texto) => {
     if (!fecha_publicacion) {
         fecha_publicacion = Date.now() / 1000;
     }
-    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo) VALUES ($1, $2, to_timestamp($3), $4)', [usuario, 'Reddit', fecha_publicacion, tipo], (error, results) => {
+    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo,texto) VALUES ($1, $2, to_timestamp($3), $4,$5)', [usuario, 'Reddit', fecha_publicacion, tipo,texto], (error, results) => {
         if (error) {
             throw error
         }
@@ -271,26 +271,7 @@ const getLiToken = async (usuario) => {
 }
 
 //Schedule Posts
-const programarPost = (request, response) => {
-    let { usuario_id } = request.params;
 
-    pool.query('SELECT * FROM posts WHERE usuario_id = $1', [usuario_id], async (error, results) => {
-        if (error) {
-            throw error
-        }
-        if (results.rows.length < 1) {
-            return response.status(StatusCodes.NOT_FOUND).json({
-                message: ReasonPhrases.NOT_FOUND,
-                data: "Este usuario no tiene posts"
-            });
-        } else {
-            return response.status(StatusCodes.OK).json({
-                message: ReasonPhrases.OK,
-                data: results.rows
-            });
-        }
-    })
-}
 
 const getPostsByUser = (request, response) => {
     let { usuario_id } = request.params;
