@@ -14,7 +14,6 @@ const pool = new Pool({
 })
 
 
-
 // TWITTER
 const client = new TwitterApi({ clientId: "Q0c5ZXhPcWZEUmhMRFJWd3IxZGM6MTpjaQ", clientSecret: "qQpBzMN4StGVZXn5b0U9-h2I1gLovjqceJx96qbqCN3M7jq1_U" });
 
@@ -70,6 +69,12 @@ const crearAuthToken = async (request, response) => {
     client.loginWithOAuth2({ code, codeVerifier, redirectUri: "http://localhost:3000/home" })
         .then(async ({ client: loggedClient, accessToken, refreshToken, expiresIn }) => {
             await saveTwToken(user, accessToken)
+            const client1 = new TwitterApi(accessToken);
+            const meUser = await client1.v2.me({ expansions: ['pinned_tweet_id'] });
+            return response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: meUser
+            });
 
         })
         .catch((err) => response.status(403).send(err));
@@ -144,6 +149,7 @@ const crearRedditPost = async (req, res) => {
         clientSecret: 'iC1omzDOWGpE6q3EdyckOkdvN8nHMA',
         refreshToken: token
     });
+
     try {
         const post = r.getSubreddit('SocialHubMngr').submitSelfpost({ title: 'Title', text: texto });
         try {
