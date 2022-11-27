@@ -1,6 +1,5 @@
 const { ReasonPhrases, StatusCodes } = require("http-status-codes");
 const { TwitterApi } = require('twitter-api-v2');
-const schedule = require('node-schedule');
 var RedditApi = require('reddit-oauth');
 const snoowrap = require('snoowrap');
 
@@ -202,7 +201,27 @@ const insertarRedditBD = async (usuario, fecha_publicacion, tipo, texto) => {
         return results;
     })
 }
+const getRedditPostsByUser = (request, response) => {
+    let { usuario } = request.body;
+    console.log(usuario);
 
+    pool.query('SELECT * FROM posts WHERE usuario_id = $1 and plataforma = $2', [usuario, 'Reddit'], async (error, results) => {
+        if (error) {
+            throw error
+        }
+        if (results.rows.length < 1) {
+            return response.status(StatusCodes.NOT_FOUND).json({
+                message: ReasonPhrases.NOT_FOUND,
+                data: "Este usuario no tiene posts"
+            });
+        } else {
+            return response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: results.rows
+            });
+        }
+    })
+}
 //END REDDIT
 
 //LINKEDIN
@@ -301,6 +320,7 @@ module.exports = {
     crearRedditAuthToken,
     crearRedditAuthLink,
     crearRedditPost,
+    getRedditPostsByUser,
     crearLinkedAuthLink,
     crearLinkedAuthToken,
     crearLinkedPost
