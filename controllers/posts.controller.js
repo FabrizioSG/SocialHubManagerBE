@@ -429,5 +429,6 @@ module.exports = {
     getRedditPostsByUser,
     crearLinkedAuthLink,
     crearLinkedAuthToken,
-    crearLinkedPost
+    crearLinkedPost,
+    getLinkedPostsByUser
 }

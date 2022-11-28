@@ -15,5 +15,6 @@ router.post('/reddit/posts',postController.getRedditPostsByUser)
 router.post('/linkedin/token',postController.crearLinkedAuthToken)
 router.post('/linkedin/link',postController.crearLinkedAuthLink)
 router.post('/linkedin/post',postController.crearLinkedPost)
+router.post('/linkedin/posts',postController.getLinkedPostsByUser)
 
 module.exports = router;
