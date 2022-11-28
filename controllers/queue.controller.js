@@ -125,17 +125,23 @@ const getSchedulesAndPostsByUserAndDayAndTime = async () => {
     }
     let time = '08:05:00';
 
-    const { rows } = await pool.query('SELECT u.id, s.day_of_week, s.time_of_day, p.plataforma, p.texto FROM usuarios AS u JOIN schedules AS s ON u.id = s.usuario_id JOIN posts AS p ON u.id = p.usuario_id WHERE p.fecha_publicacion IS NULL AND p.tipo = \'cola\' AND s.day_of_week = $1 AND s.time_of_day = $2', [date.getDay(), time]);
+    const { rows } = await pool.query('SELECT u.id AS usuario_id, s.day_of_week, s.time_of_day, p.id AS post_id, p.plataforma, p.texto, p.fecha_creacion FROM usuarios AS u JOIN schedules AS s ON u.id = s.usuario_id JOIN posts AS p ON u.id = p.usuario_id WHERE p.fecha_publicacion IS NULL AND p.tipo = \'cola\' AND s.day_of_week = $1 AND s.time_of_day = $2 ORDER BY usuario_id, p.fecha_creacion', [date.getDay(), time]);
+    
+    let filteredRows = [];
+    filteredRows.push(rows[0]);
 
     rows.forEach(row => {
         if (row.plataforma === "Twitter") {
-            publicarTweet(row.texto, row.id);
+            publicarTweet(row.texto, row.usuario_id);
+            pool.query('UPDATE posts SET fecha_publicacion = $1 WHERE id = $2', [new Date(), row.post_id]);
         }
         if (row.plataforma === "Reddit") {
-            publicarRedditPost(row.texto, row.id);
+            publicarRedditPost(row.texto, row.usuario_id);
+            pool.query('UPDATE posts SET fecha_publicacion = $1 WHERE id = $2', [new Date(), row.post_id]);
         }
         if (row.plataforma === "LinkedIn") {
-            publicarLinkedPost(row.texto, row.id);
+            publicarLinkedPost(row.texto, row.usuario_id);
+            pool.query('UPDATE posts SET fecha_publicacion = $1 WHERE id = $2', [new Date(), row.post_id]);
         }
     });
 }
@@ -215,14 +221,15 @@ function intervalFunc() {
         hour = '0' + hour;        
     }
     if (minutes < 10) {
-        minutes = '0' + minutes;        
+        minutes = '0' + minutes;
     }
     let time = hour + ':' + minutes + ':00';
 
     if ( date.getSeconds() === 0 ) {
         console.log(time);
-        // getSchedulesAndPostsByUserAndDayAndTime();
+        getSchedulesAndPostsByUserAndDayAndTime();
     }
+    getSchedulesAndPostsByUserAndDayAndTime();
 }
 setInterval(intervalFunc, 1000);
 
