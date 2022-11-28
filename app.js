@@ -6,7 +6,9 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require('cors');
 var usersRouter = require('./routes/users');
-var postsRouter = require('./routes/posts')
+var postsRouter = require('./routes/posts');
+var schedulesRouter = require('./routes/schedules');
+var queuesRouter = require('./routes/queues');
 var app = express();
 
 // view engine setup
@@ -22,6 +24,8 @@ app.use(cors());
 
 app.use("/users", usersRouter);
 app.use("/posts", postsRouter);
+app.use("/schedules", schedulesRouter);
+app.use("/queues", queuesRouter);
 
 
 // catch 404 and forward to error handler
@@ -51,6 +55,5 @@ client.connect(function(err) {
   if (err) throw err;
   console.log("Connected!");
 });
-
 
 module.exports = app;
