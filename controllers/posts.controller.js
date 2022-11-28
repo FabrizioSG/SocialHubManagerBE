@@ -2,6 +2,7 @@ const { ReasonPhrases, StatusCodes } = require("http-status-codes");
 const { TwitterApi } = require('twitter-api-v2');
 var RedditApi = require('reddit-oauth');
 const snoowrap = require('snoowrap');
+const axios = require('axios');
 
 const Pool = require('pg').Pool
 const pool = new Pool({
@@ -95,9 +96,9 @@ const getTwToken = async (usuario) => {
         console.log(res.rows[0].twitter)
         return res.rows[0].twitter;
 
-      } catch (err) {
+    } catch (err) {
         console.log(err.stack)
-      }
+    }
 }
 //END TWITTER
 
@@ -180,21 +181,21 @@ const saveRdToken = async (usuario, token) => {
     })
 }
 const getRdToken = async (usuario) => {
-    
+
     try {
         const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
         console.log(res.rows[0].reddit)
         return res.rows[0].reddit;
 
-      } catch (err) {
+    } catch (err) {
         console.log(err.stack)
-      }
+    }
 }
 const insertarRedditBD = async (usuario, fecha_publicacion, tipo, texto) => {
     if (!fecha_publicacion) {
         fecha_publicacion = Date.now() / 1000;
     }
-    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo,texto) VALUES ($1, $2, to_timestamp($3), $4,$5)', [usuario, 'Reddit', fecha_publicacion, tipo,texto], (error, results) => {
+    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo,texto) VALUES ($1, $2, to_timestamp($3), $4,$5)', [usuario, 'Reddit', fecha_publicacion, tipo, texto], (error, results) => {
         if (error) {
             throw error
         }
@@ -228,29 +229,29 @@ const getRedditPostsByUser = (request, response) => {
 var Linkedin = require('node-linkedin')('78glr1c7cxocrx', 'MEwhepYSWesg9Pnk', 'http://localhost:3000/home');
 
 const crearLinkedAuthLink = async (req, res) => {
-    var scope = [ 'r_emailaddress','r_liteprofile','w_member_social'];
+    var scope = ['r_emailaddress', 'r_liteprofile', 'w_member_social'];
 
     const link = Linkedin.auth.authorize(scope);
 
-        return res.status(StatusCodes.OK).json({
-            message: ReasonPhrases.OK,
-            data: link
-        });
-    
+    return res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        data: link
+    });
+
 }
 const crearLinkedAuthToken = async (req, res) => {
     const { code, state, user } = req.body;
-    Linkedin.auth.getAccessToken(code, state, function(err, results) {
-        if ( err )
+    Linkedin.auth.getAccessToken(code, state, function (err, results) {
+        if (err)
             return console.error(err);
- 
+
         /**
          * Results have something like:
          * {"expires_in":5184000,"access_token":". . . ."}
          */
- 
-        console.log(results);
-        saveLiToken(user,results.access_token);
+
+        saveLiToken(user, results.access_token);
+        getLinkedinId(user);
         return res.status(StatusCodes.OK).json({
             message: ReasonPhrases.OK,
             data: results
@@ -262,11 +263,45 @@ const crearLinkedPost = async (req, res) => {
 
     const { texto, usuario, tipo, fecha_publicacion } = req.body;
     //TODO: post se esta haciendo antes de obtener y loggear el token ¿why?
-    const token = await getRdToken(usuario);
-    var linkedin = Linkedin.init('AQVhyKt0hU7lxoOk1P-IBQkAHOg6bSLSooBvMCpUUKM1RsWT30LA-whK6jEFEGgKWF7sYYMPV0aInnnQ1RpaRHh7Hberxk52HVaeJ0xH-t9FA_9KKRTHDic9ytmA7jZDrGbmszvN83-Bqr6Rg8kTq1fsTjYxqm-wu75_cBBNsI9T0M4VUgFne4lRZN-uHBYC7GuzedxIsQsYl8vGE8dRvy11BMNPYRT-sOIJcPLfQCyalND7JOe2eCTA-zkKxmLZvUGr91TbRf3L1rn__FOYuNaDBtOSEFngBsKiBwluBDBggYtrmCffgeTcFlkmUN3HpcL-PDl7JtLKlKN9umf4gCOh5IO11w');
+    const token = await getLiToken(usuario);
+    const id = await getLiTokenBD(usuario);
+    var data = JSON.stringify({
+        "author":"urn:li:person:"+id,
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {
+          "com.linkedin.ugc.ShareContent": {
+            "shareCommentary": {
+              "text": texto
+            },
+            "shareMediaCategory": "NONE"
+          }
+        },
+        "visibility": {
+          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+        }
+      });
+      
+      var config = {
+        method: 'post',
+        url: 'https://api.linkedin.com/v2/ugcPosts',
+        headers: { 
+          'Authorization': "Bearer "+token, 
+          'X-Restli-Protocol-Version': '2.0.0', 
+          'Content-Type': 'application/json', 
+          'Cookie': 'lidc="b=TB03:s=T:r=T:a=T:p=T:g=4800:u=693:x=1:i=1669647442:t=1669716743:v=2:sig=AQHt8BP6xu9DdxOw4FiMcw1Xosd_Cosy"; bcookie="v=2&f7f06dd5-2fae-4196-8fec-f924281882b9"'
+        },
+        data : data
+      };
+      
+      axios(config)
+      .then(function (response) {
+        insertarLinkedBD(usuario, fecha_publicacion, tipo, texto);
+        res.send("Listo");
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
 
-    //TODO: Crear el post en linkedin
-    
 }
 const saveLiToken = async (usuario, token) => {
 
@@ -277,18 +312,89 @@ const saveLiToken = async (usuario, token) => {
         return results;
     })
 }
+const saveLiId = async (usuario, id) => {
+
+    pool.query('UPDATE usuarios set linkedin_id=$1 where id=$2', [id, usuario], (error, results) => {
+        if (error) {
+            throw error
+        }
+        return results;
+    })
+}
 const getLiToken = async (usuario) => {
 
     try {
         const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
-        console.log(res.rows[0].linkedin)
         return res.rows[0].linkedin;
 
-      } catch (err) {
+    } catch (err) {
         console.log(err.stack)
-      }
+    }
 }
+const getLiTokenBD = async (usuario) => {
 
+    try {
+        const res = await pool.query('SELECT * from usuarios where id=$1', [usuario])
+        return res.rows[0].linkedin_id;
+
+    } catch (err) {
+        console.log(err.stack)
+    }
+}
+const getLinkedinId = async (usuario) => {
+    const token = await getLiToken(usuario);
+    try {
+        await axios
+            .get("https://api.linkedin.com/v2/me", {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-Restli-Protocol-Version': '2.0.0'
+                }
+            })
+            .catch(function (error) {
+                return error
+            })
+            .then((response) => {
+                console.log(response.data);
+                saveLiId(usuario, response.data.id);
+            });
+    } catch (err) {
+        return err
+    }
+}
+const insertarLinkedBD = async (usuario, fecha_publicacion, tipo, texto) => {
+    if (!fecha_publicacion) {
+        fecha_publicacion = Date.now() / 1000;
+    }
+    pool.query('INSERT INTO posts (usuario_id,plataforma,fecha_publicacion,tipo,texto) VALUES ($1, $2, to_timestamp($3), $4,$5)', [usuario, 'LinkedIn', fecha_publicacion, tipo, texto], (error, results) => {
+        if (error) {
+            throw error
+        }
+        return results;
+    })
+}
+const getLinkedPostsByUser = (request, response) => {
+    let { usuario } = request.body;
+    console.log(usuario);
+
+    pool.query('SELECT * FROM posts WHERE usuario_id = $1 and plataforma = $2', [usuario, 'LinkedIn'], async (error, results) => {
+        if (error) {
+            throw error
+        }
+        if (results.rows.length < 1) {
+            return response.status(StatusCodes.NOT_FOUND).json({
+                message: ReasonPhrases.NOT_FOUND,
+                data: "Este usuario no tiene posts"
+            });
+        } else {
+            return response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: results.rows
+            });
+        }
+    })
+}
+//END LinkedIn
 //Schedule Posts
 
 
