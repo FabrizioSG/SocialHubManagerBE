@@ -375,7 +375,6 @@ const insertarLinkedBD = async (usuario, fecha_publicacion, tipo, texto) => {
 }
 const getLinkedPostsByUser = (request, response) => {
     let { usuario } = request.body;
-    console.log(usuario);
 
     pool.query('SELECT * FROM posts WHERE usuario_id = $1 and plataforma = $2', [usuario, 'LinkedIn'], async (error, results) => {
         if (error) {
@@ -399,9 +398,9 @@ const getLinkedPostsByUser = (request, response) => {
 
 
 const getPostsByUser = (request, response) => {
-    let { usuario_id } = request.params;
+    let { usuario } = request.body;
 
-    pool.query('SELECT * FROM posts WHERE usuario_id = $1', [usuario_id], async (error, results) => {
+    pool.query('SELECT * FROM posts WHERE usuario_id = $1 and tipo = $2', [usuario,'cola'], async (error, results) => {
         if (error) {
             throw error
         }
@@ -418,6 +417,19 @@ const getPostsByUser = (request, response) => {
         }
     })
 }
+const deleteCola = (request, response) => {
+    let { id } = request.body;
+    console.log(id);
+    pool.query('DELETE FROM posts WHERE id = $1', [id], async (error, results) => {
+        if (error) {
+            throw error
+        }
+        return response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: 'Post Borrado'
+        });
+    })
+}
 module.exports = {
     crearAuthToken,
     crearAuthLink,
@@ -430,5 +442,6 @@ module.exports = {
     crearLinkedAuthLink,
     crearLinkedAuthToken,
     crearLinkedPost,
-    getLinkedPostsByUser
+    getLinkedPostsByUser,
+    deleteCola
 }
