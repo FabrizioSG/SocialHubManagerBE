@@ -29,6 +29,20 @@ const getUsers = (request, response) => {
     })
 }
 
+const getUser = (request, response) => {
+    const id = parseInt(request.params.id);
+
+    pool.query('SELECT * FROM usuarios WHERE id = $1', [id], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: results.rows[0]
+        });
+    })
+}
+
 const crearTweet = (request, response) => {
     let {texto,usuario,fecha_publicacion,tipo} = request.body;
     T.v2.tweet(texto).then((val) => {
@@ -102,16 +116,22 @@ const createUser = async (request, response) => {
 
 const updateUser = (request, response) => {
     const id = parseInt(request.params.id)
-    const { name, email } = request.body
+    const { nombre, apellido, email } = request.body
+    console.log(nombre);
+    console.log(apellido);
+    console.log(email);
 
     pool.query(
-        'UPDATE users SET name = $1, email = $2 WHERE id = $3',
-        [name, email, id],
+        'UPDATE usuarios SET nombre = $1, apellido = $2, email = $3 WHERE id = $4',
+        [nombre, apellido, email, id],
         (error, results) => {
             if (error) {
                 throw error
             }
-            response.status(200).send(`User modified with ID: ${id}`)
+            response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: "User updated:" + email,
+            });
         }
     )
 }
@@ -143,7 +163,7 @@ const generarOTP = async (request, response) => {
     const id = parseInt(request.params.id);
     const { ascii, hex, base32, otpauth_url } = speakeasy.generateSecret({
         issuer: "SocialHubManager",
-        name: "admin@admin.com",
+        name: "SocialHubManager",
         length: 15
     });
 
@@ -200,7 +220,10 @@ const verificarOTP = async (request, response) => {
             }
             response
                 .status(StatusCodes.OK)
-                .send(`OTP verified for user with ID: ${id}`);
+                .json({
+                    message: ReasonPhrases.OK,
+                    data: `OTP verified for user with ID: ${id}`
+                });
         }
     )
 }
@@ -234,7 +257,10 @@ const validarOTP = async (request, response) => {
 
     response
         .status(StatusCodes.OK)
-        .send(`OTP validated for user with ID: ${id}`);
+        .json({
+            message: ReasonPhrases.OK,
+            data: `OTP validated for user with ID: ${id}`
+        });
 }
 
 const desactivarOTP = async (request, response) => {
@@ -249,7 +275,10 @@ const desactivarOTP = async (request, response) => {
             }
             response
                 .status(StatusCodes.OK)
-                .send(`OTP disabled for user with ID: ${id}`);
+                .json({
+                    message: ReasonPhrases.OK,
+                    data: `OTP disabled for user with ID: ${id}`
+                });
         }
     )
 }
@@ -257,6 +286,7 @@ const desactivarOTP = async (request, response) => {
 module.exports = {
     crearTweet,
     getUsers,
+    getUser,
     login,
     createUser,
     updateUser,
