@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const token = require('basic-auth-token');
 const { ReasonPhrases, StatusCodes } = require("http-status-codes");
 const {TwitterApi} = require('twitter-api-v2');
+const speakeasy = require("speakeasy");
 
 const Pool = require('pg').Pool
 const pool = new Pool({
@@ -20,11 +21,25 @@ const T = new TwitterApi({
   });
 
 const getUsers = (request, response) => {
-    pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
+    pool.query('SELECT * FROM usuarios ORDER BY id ASC', (error, results) => {
         if (error) {
             throw error
         }
         response.status(200).json(results.rows)
+    })
+}
+
+const getUser = (request, response) => {
+    const id = parseInt(request.params.id);
+
+    pool.query('SELECT * FROM usuarios WHERE id = $1', [id], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            data: results.rows[0]
+        });
     })
 }
 
@@ -101,16 +116,22 @@ const createUser = async (request, response) => {
 
 const updateUser = (request, response) => {
     const id = parseInt(request.params.id)
-    const { name, email } = request.body
+    const { nombre, apellido, email } = request.body
+    console.log(nombre);
+    console.log(apellido);
+    console.log(email);
 
     pool.query(
-        'UPDATE users SET name = $1, email = $2 WHERE id = $3',
-        [name, email, id],
+        'UPDATE usuarios SET nombre = $1, apellido = $2, email = $3 WHERE id = $4',
+        [nombre, apellido, email, id],
         (error, results) => {
             if (error) {
                 throw error
             }
-            response.status(200).send(`User modified with ID: ${id}`)
+            response.status(StatusCodes.OK).json({
+                message: ReasonPhrases.OK,
+                data: "User updated:" + email,
+            });
         }
     )
 }
@@ -137,12 +158,141 @@ const insertarTweetBD = async (usuario, fecha_publicacion, tipo) => {
         return results;
     })
 }
-module.exports = {
 
+const generarOTP = async (request, response) => {
+    const id = parseInt(request.params.id);
+    const { ascii, hex, base32, otpauth_url } = speakeasy.generateSecret({
+        issuer: "SocialHubManager",
+        name: "SocialHubManager",
+        length: 15
+    });
+
+    pool.query(
+        'UPDATE usuarios SET otp_ascii = $1, otp_hex = $2, otp_base32 = $3, otp_auth_url = $4 WHERE id = $5',
+        [ascii, hex, base32, otpauth_url, id],
+        (error, results) => {
+            if (error) {
+                throw error
+            }
+            response
+                .status(StatusCodes.OK)
+                .json({
+                    message: ReasonPhrases.OK,
+                    base32, 
+                    otpauth_url
+                });
+        }
+    )
+}
+
+const verificarOTP = async (request, response) => {
+    const id = parseInt(request.params.id);
+    const { token } = request.body;
+
+    const { rows } = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
+
+    if (!rows[0]) {
+        return response.status(StatusCodes.UNAUTHORIZED).json({
+            message: ReasonPhrases.UNAUTHORIZED,
+            data: "Token o usuario no existe"
+        });
+    }
+
+    const verificado = speakeasy.totp.verify({
+        secret: rows[0].otp_base32,
+        encoding: "base32",
+        token
+    });
+
+    if (!verificado) {
+        return response.status(StatusCodes.UNAUTHORIZED).json({
+            message: ReasonPhrases.UNAUTHORIZED,
+            data: "Token o usuario no existe"
+        });
+    }
+
+    pool.query(
+        'UPDATE usuarios SET otp_habilitado = true, otp_verificado = true WHERE id = $1',
+        [id],
+        (error, results) => {
+            if (error) {
+                throw error
+            }
+            response
+                .status(StatusCodes.OK)
+                .json({
+                    message: ReasonPhrases.OK,
+                    data: `OTP verified for user with ID: ${id}`
+                });
+        }
+    )
+}
+
+const validarOTP = async (request, response) => {
+    const id = parseInt(request.params.id);
+    const { token } = request.body;
+
+    const { rows } = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
+
+    if (!rows[0]) {
+        return response.status(StatusCodes.UNAUTHORIZED).json({
+            message: ReasonPhrases.UNAUTHORIZED,
+            data: "Token o usuario no existe"
+        });
+    }
+
+    const tokenValidado = speakeasy.totp.verify({
+        secret: rows[0].otp_base32,
+        encoding: "base32",
+        token,
+        window: 1
+    });
+
+    if (!tokenValidado) {
+        return response.status(StatusCodes.UNAUTHORIZED).json({
+            message: ReasonPhrases.UNAUTHORIZED,
+            data: "Token invalido o usuario no existe"
+        });
+    }
+
+    response
+        .status(StatusCodes.OK)
+        .json({
+            message: ReasonPhrases.OK,
+            data: `OTP validated for user with ID: ${id}`
+        });
+}
+
+const desactivarOTP = async (request, response) => {
+    const id = parseInt(request.params.id);
+
+    pool.query(
+        'UPDATE usuarios SET otp_habilitado = false WHERE id = $1',
+        [id],
+        (error, results) => {
+            if (error) {
+                throw error
+            }
+            response
+                .status(StatusCodes.OK)
+                .json({
+                    message: ReasonPhrases.OK,
+                    data: `OTP disabled for user with ID: ${id}`
+                });
+        }
+    )
+}
+
+module.exports = {
     crearTweet,
     getUsers,
+    getUser,
     login,
     createUser,
     updateUser,
     deleteUser,
+    generarOTP,
+    verificarOTP,
+    validarOTP,
+    desactivarOTP
 }
