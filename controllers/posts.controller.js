@@ -36,6 +36,15 @@ const crearTweet = async (request, response) => {
     })
 }
 
+const crearTweetCola = async (request, response) => {
+    let { texto, usuario, tipo } = request.body;
+    pool.query('INSERT INTO posts (usuario_id,plataforma,tipo,texto) VALUES ($1, $2, $3, $4)', [usuario, 'Twitter', tipo, texto], (error, results) => {
+        if (error) {
+            throw error
+        }
+    })
+}
+
 const insertarTweetBD = async (usuario, fecha_publicacion, tipo, texto) => {
     if (!fecha_publicacion) {
         fecha_publicacion = Date.now() / 1000;
@@ -171,6 +180,16 @@ const crearRedditPost = async (req, res) => {
         });
     }
 }
+
+const crearRedditPostCola = async (request, response) => {
+    let { texto, usuario, tipo } = request.body;
+    pool.query('INSERT INTO posts (usuario_id,plataforma,tipo,texto) VALUES ($1, $2, $3, $4)', [usuario, 'Reddit', tipo, texto], (error, results) => {
+        if (error) {
+            throw error
+        }
+    })
+}
+
 const saveRdToken = async (usuario, token) => {
 
     pool.query('UPDATE usuarios set reddit=$1 where id=$2', [token, usuario], (error, results) => {
@@ -303,6 +322,16 @@ const crearLinkedPost = async (req, res) => {
       });
 
 }
+
+const crearLinkedPostCola = async (request, response) => {
+    let { texto, usuario, tipo } = request.body;
+    pool.query('INSERT INTO posts (usuario_id,plataforma,tipo,texto) VALUES ($1, $2, $3, $4)', [usuario, 'LinkedIn', tipo, texto], (error, results) => {
+        if (error) {
+            throw error
+        }
+    })
+}
+
 const saveLiToken = async (usuario, token) => {
 
     pool.query('UPDATE usuarios set linkedin=$1 where id=$2', [token, usuario], (error, results) => {
@@ -434,14 +463,17 @@ module.exports = {
     crearAuthToken,
     crearAuthLink,
     crearTweet,
+    crearTweetCola,
     getPostsByUser,
     crearRedditAuthToken,
     crearRedditAuthLink,
     crearRedditPost,
+    crearRedditPostCola,
     getRedditPostsByUser,
     crearLinkedAuthLink,
     crearLinkedAuthToken,
     crearLinkedPost,
+    crearLinkedPostCola,
     getLinkedPostsByUser,
     deleteCola
 }
